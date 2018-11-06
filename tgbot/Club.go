@@ -7,6 +7,9 @@ type Club struct {
 	IoService IoService
 	commonFund int
 	fundMtx sync.Mutex
+
+	credit int
+	creditMtx sync.Mutex
 }
 
 
@@ -41,4 +44,23 @@ func (club *Club) GetFund() int {
 	fund := club.commonFund
 	club.fundMtx.Unlock()
 	return fund
+}
+
+func (club *Club) CreditAdd(i int) {
+	club.fundMtx.Lock()
+	club.credit += i
+	club.fundMtx.Unlock()
+}
+
+func (club *Club) CreditRemove(i int) {
+	club.fundMtx.Lock()
+	club.credit -= i
+	club.fundMtx.Unlock()
+}
+
+func (club *Club) GetCredit() int {
+	club.fundMtx.Lock()
+	credit := club.credit
+	club.fundMtx.Unlock()
+	return credit
 }

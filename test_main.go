@@ -50,9 +50,13 @@ func main() {
 					}
 
 					fmt.Printf("<-%d, From:\t%s, Type: %s Text: %s \n", msg.ID, msg.Chat, typ, *msg.Text)
-					user := club.GetUser(*msg.Chat.Username)
-
-					user.Msgs <- tgbot.UserMessage{*msg}
+					if msg.Chat.Username != nil {
+						user := club.GetUser(*msg.Chat.Username)
+						user.Msgs <- tgbot.UserMessage{*msg}
+					} else {
+						user := club.GetUser(string(msg.Chat.ID))
+						user.Msgs <- tgbot.UserMessage{*msg}
+					}
 				case tbotapi.InlineQueryUpdate:
 					fmt.Println("Ignoring received inline query: ", update.InlineQuery.Query)
 				case tbotapi.ChosenInlineResultUpdate:

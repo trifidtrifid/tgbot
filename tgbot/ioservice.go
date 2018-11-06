@@ -40,9 +40,11 @@ func (bot *BotIoService) sendMainMenu(recipient tbotapi.Recipient) {
 
 	toSend := bot.Api.NewOutgoingMessage(recipient, "Select action")
 	toSend.SetReplyKeyboardMarkup(tbotapi.ReplyKeyboardMarkup{
-		Keyboard:        [][]tbotapi.KeyboardButton{[]tbotapi.KeyboardButton{
-			{Text: "Hold" }},
-			{{Text: "Salary"}}},
+		Keyboard:        [][]tbotapi.KeyboardButton{{{Text: "Hold"}},
+			{{Text: "Salary"}},
+			{{Text: "Info"}},
+			{{Text: "Get money"}},
+			{{Text: "Return Money"}}},
 		OneTimeKeyboard: true,
 	})
 

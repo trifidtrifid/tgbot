@@ -117,3 +117,64 @@ func TestUserSetSalary(t *testing.T) {
 	assert.Equal(t, 2000, user.Salary)
 	assert.Equal(t, 3000, user.CreditLimit)
 }
+
+func TestUserGetMoney(t *testing.T) {
+
+	club := CreateClub()
+	testIo := CreateTestIoService()
+	club.IoService = testIo
+	{
+		user := club.GetUser("trifid")
+
+		sendText(user, "/start")
+		assert.True(t, testIo.checkText("main menu"))
+
+		sendText(user, "Hold")
+		assert.True(t, testIo.checkText(HowMuchHold))
+
+		sendText(user, "2000")
+		assert.True(t, testIo.checkText(fmt.Sprintf(HoldDone, 2000)))
+		assert.Equal(t, 2000, user.HoldAmount)
+		assert.Equal(t, 2000, club.GetFund())
+	}
+	{
+		user := club.GetUser("usera")
+
+		sendText(user, "/start")
+		assert.True(t, testIo.checkText("main menu"))
+
+		sendText(user, "Salary")
+		assert.True(t, testIo.checkText(HowMuchSal))
+
+		sendText(user, "1000")
+		assert.True(t, testIo.checkText(fmt.Sprintf(SalAnswer, 1000, 1500)))
+		assert.Equal(t, 1500, user.CreditLimit)
+	}
+	{
+		user := club.GetUser("usera")
+
+		sendText(user, "/start")
+		assert.True(t, testIo.checkText("main menu"))
+
+		sendText(user, "Get money")
+		assert.True(t, testIo.checkText(fmt.Sprintf(HowMuchTake, 1500)))
+
+		sendText(user, "700")
+		assert.True(t, testIo.checkText(fmt.Sprintf(TakenSucc, 700)))
+		assert.Equal(t, 700, user.InCredit)
+	}
+	{
+		user := club.GetUser("usera")
+
+		sendText(user, "/start")
+		assert.True(t, testIo.checkText("main menu"))
+
+		sendText(user, "Return Money")
+		assert.True(t, testIo.checkText(fmt.Sprintf(HowMuchReturn, 700)))
+
+		sendText(user, "300")
+		assert.True(t, testIo.checkText(fmt.Sprintf(ReturnSucc, 400)))
+		assert.Equal(t, 400, user.InCredit)
+
+	}
+}

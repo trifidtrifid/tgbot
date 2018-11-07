@@ -12,12 +12,12 @@ const (
 	HowMuchHold = "How much you want to hold?"
 	HoldDone = "Your $%d held. You are a good and kind person!"
 	ErrGotoMain = "Error. Try /start again"
-	InfoMsg = "Club Info\t" +
-		"Common Club Fund for zero percent credits: %d\t" +
-		"Your credit limit %d\t" +
-		"APs: %d\t" +
-		"Your holded funds: %d\t" +
-		"You borrow %d"
+	InfoMsg = "*Club Info*\n" +
+		"Common Club Fund for zero percent credits: %d\n" +
+		"Your credit limit: %d\n" +
+		"APs: %d\n" +
+		"Your holded funds: %d\n" +
+		"You borrow: %d\n"
 	HowMuchTake = "How much you want to take from common fund? max available credit for you %d. Common fund is %d"
 	TakenSucc = "You successfully borrow $%d"
 	HowMuchReturn = "How much you want to return to common fund? your credit %d"
@@ -34,6 +34,7 @@ type User struct {
 	CreditLimit int
 	AP int
 	InCredit int
+	 Recipient *tbotapi.Recipient
 }
 
 type UserMessage struct {
@@ -51,6 +52,15 @@ func (user *User) Run() {
 	}
 }
 
+func (user *User) getClubInfo() string {
+	return fmt.Sprintf(InfoMsg,
+		user.Club.GetFund() - user.Club.GetCredit(),
+		user.CreditLimit - user.InCredit,
+		user.AP,
+		user.HoldAmount,
+		user.InCredit)
+}
+
 func (user *User) processMsg(msg *UserMessage) {
 
 	fmt.Printf("receive message %s\n", *msg.Message.Text)
@@ -62,13 +72,16 @@ func (user *User) processMsg(msg *UserMessage) {
 		case "Hold":
 			user.Club.IoService.sendText(recipient, HowMuchHold)
 			userMsg = <-user.Msgs
-			n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &user.HoldAmount)
+			var i int
+			n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
 			if n != 1 {
 				user.Club.IoService.sendText(recipient, ErrGotoMain)
 				return
 			}
-			user.Club.FundAdd(user.HoldAmount)
+			user.HoldAmount += i
+			user.Club.FundAdd(i)
 			user.Club.IoService.sendText(recipient, fmt.Sprintf(HoldDone, user.HoldAmount))
+			user.Club.NotifyEveryone(fmt.Sprintf("user %s hold %d", msg.Message.Chat, i))
 
 		case "Salary":
 			user.Club.IoService.sendText(recipient, HowMuchSal)

@@ -13,7 +13,9 @@ import (
 func main() {
 
 	club := tgbot.CreateClub()
-	ioService := tgbot.CreateBotIoService("768558434:AAHJnCN-A4k-kzc3DdlywUP8tuH8rs8ni4Q")
+
+	ioService := tgbot.CreateBotIoService("707764774:AAGfSYmOolr0YBfiz10lCNkAupmWhvVttRA") //test
+//	ioService := tgbot.CreateBotIoService("768558434:AAHJnCN-A4k-kzc3DdlywUP8tuH8rs8ni4Q")
 	club.IoService = ioService
 
 
@@ -50,13 +52,13 @@ func main() {
 					}
 
 					fmt.Printf("<-%d, From:\t%s, Type: %s Text: %s \n", msg.ID, msg.Chat, typ, *msg.Text)
-					if msg.Chat.Username != nil {
-						user := club.GetUser(*msg.Chat.Username)
-						user.Msgs <- tgbot.UserMessage{*msg}
-					} else {
-						user := club.GetUser(string(msg.Chat.ID))
-						user.Msgs <- tgbot.UserMessage{*msg}
+					user := club.GetUserByChat(msg.Chat)
+					if user == nil {
+						fmt.Printf("Cannot find or create user for chat: %s\n", msg.Chat)
+						return
+
 					}
+					user.Msgs <- tgbot.UserMessage{Message: *msg}
 				case tbotapi.InlineQueryUpdate:
 					fmt.Println("Ignoring received inline query: ", update.InlineQuery.Query)
 				case tbotapi.ChosenInlineResultUpdate:

@@ -60,7 +60,9 @@ func (bot *BotIoService) sendMainMenu(recipient tbotapi.Recipient) {
 func (bot *BotIoService) sendText(recipient tbotapi.Recipient, text string) {
 
 	// Now simply echo that back.
-	outMsg, err := bot.Api.NewOutgoingMessage(recipient, text).Send()
+	msg := bot.Api.NewOutgoingMessage(recipient, text)
+	msg.ParseMode = tbotapi.ModeMarkdown
+	outMsg, err := msg.Send()
 	if err != nil {
 		fmt.Printf("Error sending text: %s\n", err)
 		return

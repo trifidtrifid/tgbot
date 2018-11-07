@@ -157,7 +157,7 @@ func TestUserGetMoney(t *testing.T) {
 		assert.True(t, testIo.checkText("main menu"))
 
 		sendText(user, "Get money")
-		assert.True(t, testIo.checkText(fmt.Sprintf(HowMuchTake, 1500)))
+		assert.True(t, testIo.checkText(fmt.Sprintf(HowMuchTake, 1500, 2000)))
 
 		sendText(user, "700")
 		assert.True(t, testIo.checkText(fmt.Sprintf(TakenSucc, 700)))

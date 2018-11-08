@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mrd0ll4r/tbotapi"
 	"github.com/stretchr/testify/assert"
+	"hash/fnv"
 	"testing"
 )
 
@@ -33,10 +34,26 @@ func (bot *TestIoService) checkText(expect string) bool {
 	}
 	return true
 }
+func (bot *TestIoService) skipText() {
+	<-bot.Out
+}
+
+func makeChat(name string) tbotapi.Chat {
+	var chat tbotapi.Chat
+	chat.Username = new(string)
+	*chat.Username = name
+	
+	h := fnv.New32a()
+	h.Write([]byte(name))
+	chat.ID = int(h.Sum32())
+	
+	return chat
+}
 
 func sendText(user *User, text string) {
 	var msg UserMessage;
 	msg.Message.Text = new(string)
+	msg.Message.Chat = user.Chat
 	*msg.Message.Text = text
 	user.Msgs<-msg
 }
@@ -47,7 +64,7 @@ func TestUserHoldDeposit(t *testing.T) {
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 
-	user := club.GetUser("trifid")
+	user := club.GetUser(makeChat("trifid"))
 
 	sendText(user, "/start")
 	assert.True(t, testIo.checkText("main menu"))
@@ -67,7 +84,7 @@ func TestUserHoldDepositTwo(t *testing.T) {
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 	{
-		user := club.GetUser("trifid")
+		user := club.GetUser(makeChat("trifid"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
@@ -79,9 +96,10 @@ func TestUserHoldDepositTwo(t *testing.T) {
 		assert.True(t, testIo.checkText(fmt.Sprintf(HoldDone, 1000)))
 		assert.Equal(t, 1000, user.HoldAmount)
 		assert.Equal(t, 1000, club.GetFund())
+		testIo.skipText()
 	}
 	{
-		user := club.GetUser("usera")
+		user := club.GetUser(makeChat("usera"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
@@ -93,6 +111,9 @@ func TestUserHoldDepositTwo(t *testing.T) {
 		assert.True(t, testIo.checkText(fmt.Sprintf(HoldDone, 1000)))
 		assert.Equal(t, 1000, user.HoldAmount)
 		assert.Equal(t, 2000, club.GetFund())
+		testIo.skipText()
+		testIo.skipText()
+
 	}
 }
 
@@ -104,7 +125,7 @@ func TestUserSetSalary(t *testing.T) {
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 
-	user := club.GetUser("trifid")
+	user := club.GetUser(makeChat("trifid"))
 
 	sendText(user, "/start")
 	assert.True(t, testIo.checkText("main menu"))
@@ -124,7 +145,7 @@ func TestUserGetMoney(t *testing.T) {
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 	{
-		user := club.GetUser("trifid")
+		user := club.GetUser(makeChat("trifid"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
@@ -138,7 +159,7 @@ func TestUserGetMoney(t *testing.T) {
 		assert.Equal(t, 2000, club.GetFund())
 	}
 	{
-		user := club.GetUser("usera")
+		user := club.GetUser(makeChat("usera"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
@@ -151,7 +172,7 @@ func TestUserGetMoney(t *testing.T) {
 		assert.Equal(t, 1500, user.CreditLimit)
 	}
 	{
-		user := club.GetUser("usera")
+		user := club.GetUser(makeChat("usera"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
@@ -164,7 +185,7 @@ func TestUserGetMoney(t *testing.T) {
 		assert.Equal(t, 700, user.InCredit)
 	}
 	{
-		user := club.GetUser("usera")
+		user := club.GetUser(makeChat("usera"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))

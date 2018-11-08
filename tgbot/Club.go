@@ -1,8 +1,9 @@
 package tgbot
 
 import (
+	"fmt"
 	"github.com/mrd0ll4r/tbotapi"
-	"log"
+	"strconv"
 	"sync"
 )
 
@@ -25,32 +26,18 @@ func CreateClub() *Club {
 	return club
 }
 
-func (club *Club) GetUserByChat(chat tbotapi.Chat) *User {
-
-	var user *User
-	if chat.Username != nil {
-		user = club.GetUser(*chat.Username)
-	} else {
-		user = club.GetUser(string(chat.ID))
-	}
-	if user.Recipient == nil {
-		user.Recipient = new(tbotapi.Recipient)
-		*user.Recipient = tbotapi.NewRecipientFromChat(chat)
-	}
-	return user
-}
-
-func (club *Club) GetUser(userName string) *User {
+func (club *Club) GetUser(chat tbotapi.Chat) *User {
 	club.usersMtx.Lock()
 	defer club.usersMtx.Unlock()
 
-	user, ok := club.Users[userName]
+	user, ok := club.Users[strconv.Itoa(chat.ID)]
 	if !ok {
 		user = new(User)
 		user.Close = make(chan interface{})
 		user.Msgs = make(chan UserMessage)
 		user.Club = club
-		club.Users[userName] = user
+		user.Chat = chat
+		club.Users[strconv.Itoa(chat.ID)] = user
 		go user.Run()
 	}
 
@@ -62,12 +49,18 @@ func (club *Club) NotifyEveryone(text string) {
 	defer club.usersMtx.Unlock()
 
 	for _, user := range club.Users {
-		if user.Recipient != nil {
-			club.IoService.sendText(*user.Recipient, text)
-		} else {
-			log.Printf("Empti recipient. Cannot broadcast text (%s)", text)
-		}
+		club.IoService.sendText(tbotapi.NewRecipientFromChat(user.Chat), text)
 	}
+}
+
+func (club *Club) ClubUsersInfo() string {
+	club.usersMtx.Lock()
+	defer club.usersMtx.Unlock()
+	var retStr string
+	for _, user := range club.Users {
+		retStr += fmt.Sprintf("%s\n", user.getClubInfo())
+	}
+	return retStr
 }
 
 func (club *Club) FundAdd(i int) {

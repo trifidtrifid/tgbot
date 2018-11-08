@@ -44,7 +44,8 @@ func (bot *BotIoService) sendMainMenu(recipient tbotapi.Recipient) {
 			{{Text: "Salary"}},
 			{{Text: "Info"}},
 			{{Text: "Get money"}},
-			{{Text: "Return Money"}}},
+			{{Text: "Return Money"}},
+			{{Text: "Users"}}},
 		OneTimeKeyboard: true,
 	})
 

@@ -6,22 +6,22 @@ import (
 )
 
 const (
-	HowMuchSal = "How much salary?"
-	SalAnswer = "According your salary %d, your available credit limit is %d"
+	HowMuchSal = "Specify your salary in RUB"
+	SalAnswer = "According your salary %d RUB, your available credit limit is %d RUB"
 
-	HowMuchHold = "How much you want to hold?"
-	HoldDone = "Your $%d held. You are a good and kind person!"
+	HowMuchHold = "How much you want to hold in RUB for your teammates?"
+	HoldDone = "Your %d RUB held. You are a good and kind person!"
 	ErrGotoMain = "Error. Try /start again"
-	InfoMsg = "*Club Info*\n" +
-		"Common Club Fund for zero percent credits: %d\n" +
-		"Your credit limit: %d\n" +
+	InfoMsg = "*Club Info for user %s*\n" +
+		"Club Fund for zero percent credits: %d\n" +
+		"Credit limit: %d RUB\n" +
 		"APs: %d\n" +
-		"Your holded funds: %d\n" +
-		"You borrow: %d\n"
-	HowMuchTake = "How much you want to take from common fund? max available credit for you %d. Common fund is %d"
-	TakenSucc = "You successfully borrow $%d"
-	HowMuchReturn = "How much you want to return to common fund? your credit %d"
-	ReturnSucc = "now you credit %d"
+		"Holded funds: %d RUB\n" +
+		"Credit: %d RUB\n"
+	HowMuchTake = "How much you want to take from common fund? max available credit for you %d RUB. Common fund is %d RUB"
+	TakenSucc = "You successfully borrow %d RUB"
+	HowMuchReturn = "How much you want to return to common fund? your credit is %d RUB"
+	ReturnSucc = "Now your credit is %d"
 
 )
 
@@ -34,7 +34,7 @@ type User struct {
 	CreditLimit int
 	AP int
 	InCredit int
-	 Recipient *tbotapi.Recipient
+	Chat tbotapi.Chat
 }
 
 type UserMessage struct {
@@ -47,13 +47,21 @@ func (user *User) Run() {
 		case <-user.Close:
 			return
 		case userMsg := <-user.Msgs:
-			user.processMsg(&userMsg)
+			user.processMsg(userMsg)
 		}
 	}
 }
 
+func (user *User) sendMainMenu() {
+	user.Club.IoService.sendMainMenu(tbotapi.NewRecipientFromChat(user.Chat))
+}
+func (user *User) sendText(text string) {
+	user.Club.IoService.sendText(tbotapi.NewRecipientFromChat(user.Chat), text)
+}
+
 func (user *User) getClubInfo() string {
 	return fmt.Sprintf(InfoMsg,
+		user.Chat,
 		user.Club.GetFund() - user.Club.GetCredit(),
 		user.CreditLimit - user.InCredit,
 		user.AP,
@@ -61,110 +69,109 @@ func (user *User) getClubInfo() string {
 		user.InCredit)
 }
 
-func (user *User) processMsg(msg *UserMessage) {
+func (user *User) processMsg(userMsg UserMessage) {
 
-	fmt.Printf("receive message %s\n", *msg.Message.Text)
-	if *msg.Message.Text == "/start" {
-		recipient := tbotapi.NewRecipientFromChat(msg.Message.Chat)
-		user.Club.IoService.sendMainMenu(recipient)
-		userMsg := <-user.Msgs
-		switch *userMsg.Message.Text {
-		case "Hold":
-			user.Club.IoService.sendText(recipient, HowMuchHold)
+	fmt.Printf("receive message %s\n", *userMsg.Message.Text)
+	switch *userMsg.Message.Text {
+	case "/start":
+		user.sendMainMenu()
+
+	case "Hold":
+		user.sendText(HowMuchHold)
+		userMsg = <-user.Msgs
+		var i int
+		n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
+		if n != 1 {
+			user.sendText(ErrGotoMain)
+			return
+		}
+		user.HoldAmount += i
+		user.Club.FundAdd(i)
+		user.sendText(fmt.Sprintf(HoldDone, user.HoldAmount))
+		user.Club.NotifyEveryone(fmt.Sprintf("user %s hold %d RUB", userMsg.Message.Chat, i))
+
+	case "Salary":
+		user.sendText( HowMuchSal)
+		userMsg = <-user.Msgs
+		n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &user.Salary)
+		if n != 1 {
+			user.sendText( ErrGotoMain)
+			return
+		}
+		user.CreditLimit = int(float64(user.Salary) * 1.5)
+		user.sendText( fmt.Sprintf(SalAnswer, user.Salary, user.CreditLimit))
+	case "Info":
+		user.sendText( user.getClubInfo())
+	case "Get money":
+		user.sendText( fmt.Sprintf(HowMuchTake, user.CreditLimit - user.InCredit, user.Club.GetFund() - user.Club.GetCredit()))
+
+		for {
 			userMsg = <-user.Msgs
 			var i int
 			n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
 			if n != 1 {
-				user.Club.IoService.sendText(recipient, ErrGotoMain)
-				return
-			}
-			user.HoldAmount += i
-			user.Club.FundAdd(i)
-			user.Club.IoService.sendText(recipient, fmt.Sprintf(HoldDone, user.HoldAmount))
-			user.Club.NotifyEveryone(fmt.Sprintf("user %s hold %d", msg.Message.Chat, i))
-
-		case "Salary":
-			user.Club.IoService.sendText(recipient, HowMuchSal)
-			userMsg = <-user.Msgs
-			n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &user.Salary)
-			if n != 1 {
-				user.Club.IoService.sendText(recipient, ErrGotoMain)
-				return
-			}
-			user.CreditLimit = int(float64(user.Salary) * 1.5)
-			user.Club.IoService.sendText(recipient, fmt.Sprintf(SalAnswer, user.Salary, user.CreditLimit))
-		case "Info":
-			user.Club.IoService.sendText(recipient, fmt.Sprintf(InfoMsg, user.Club.GetFund() - user.Club.GetCredit(),
-				user.CreditLimit - user.InCredit, user.AP, user.HoldAmount, user.InCredit))
-		case "Get money":
-			user.Club.IoService.sendText(recipient, fmt.Sprintf(HowMuchTake, user.CreditLimit - user.InCredit, user.Club.GetFund() - user.Club.GetCredit()))
-
-			for {
-				userMsg = <-user.Msgs
-				var i int
-				n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
-				if n != 1 {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("input just whole number lower then %d", user.CreditLimit - user.InCredit))
-					continue
-				}
-
-				if i > (user.CreditLimit - user.InCredit) {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("You cannot borrow more then %d", user.CreditLimit - user.InCredit))
-					continue
-				}
-
-				if i > (user.CreditLimit - user.InCredit) {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("You cannot borrow more then %d", user.CreditLimit - user.InCredit))
-					continue
-				}
-
-				if i > (user.Club.GetFund() - user.Club.GetCredit()) {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("You can borrow only %d", user.Club.GetFund() - user.Club.GetCredit()))
-					continue
-				}
-
-				user.InCredit += i
-				user.Club.CreditAdd(i)
-				user.Club.IoService.sendText(recipient, fmt.Sprintf(TakenSucc, i))
-				break
+				user.sendText(
+					fmt.Sprintf("input just whole number lower then %d", user.CreditLimit - user.InCredit))
+				continue
 			}
 
-		case "Return Money":
-			user.Club.IoService.sendText(recipient, fmt.Sprintf(HowMuchReturn, user.InCredit))
-
-			for {
-				userMsg = <-user.Msgs
-				var i int
-				n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
-				if n != 1 {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("input just whole number lower then %d", user.InCredit))
-					continue
-				}
-
-				if i > (user.InCredit) {
-					user.Club.IoService.sendText(recipient,
-						fmt.Sprintf("You shouldn't return more then %d", user.InCredit))
-					continue
-				}
-
-				user.InCredit -= i
-				user.Club.CreditRemove(i)
-				user.Club.IoService.sendText(recipient, fmt.Sprintf(ReturnSucc, user.InCredit))
-				break
+			if i > (user.CreditLimit - user.InCredit) {
+				user.sendText(
+					fmt.Sprintf("You cannot borrow more then %d", user.CreditLimit - user.InCredit))
+				continue
 			}
 
-		default:
-			fmt.Println("error. start from very begining")
+			if i > (user.CreditLimit - user.InCredit) {
+				user.sendText(
+					fmt.Sprintf("You cannot borrow more then %d", user.CreditLimit - user.InCredit))
+				continue
+			}
+
+			if i > (user.Club.GetFund() - user.Club.GetCredit()) {
+				user.sendText(
+					fmt.Sprintf("You can borrow only %d", user.Club.GetFund() - user.Club.GetCredit()))
+				continue
+			}
+
+			user.InCredit += i
+			user.Club.CreditAdd(i)
+			user.sendText( fmt.Sprintf(TakenSucc, i))
+
+			user.Club.NotifyEveryone(fmt.Sprintf("user %s take from fund %d RUB", userMsg.Message.Chat, i))
+			break
 		}
 
-//		user.Club.IoService.sendMainMenu(recipient)
-	}
+	case "Return Money":
+		user.sendText( fmt.Sprintf(HowMuchReturn, user.InCredit))
 
+		for {
+			userMsg = <-user.Msgs
+			var i int
+			n, _ := fmt.Sscanf(*userMsg.Message.Text, "%d", &i)
+			if n != 1 {
+				user.sendText(
+					fmt.Sprintf("input just whole number lower then %d", user.InCredit))
+				continue
+			}
+
+			if i > (user.InCredit) {
+				user.sendText(
+					fmt.Sprintf("You shouldn't return more then %d", user.InCredit))
+				continue
+			}
+
+			user.InCredit -= i
+			user.Club.CreditRemove(i)
+			user.sendText( fmt.Sprintf(ReturnSucc, user.InCredit))
+
+			user.Club.NotifyEveryone(fmt.Sprintf("user %s return to fund %d RUB", userMsg.Message.Chat, i))
+			break
+		}
+	case "Users" :
+		user.sendText(user.Club.ClubUsersInfo())
+	default:
+		user.sendText("try /start")
+	}
 
 }
 

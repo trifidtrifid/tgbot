@@ -14,8 +14,8 @@ func main() {
 
 	club := tgbot.CreateClub()
 
-//	ioService := tgbot.CreateBotIoService("707764774:AAGfSYmOolr0YBfiz10lCNkAupmWhvVttRA") //test
-	ioService := tgbot.CreateBotIoService("768558434:AAHJnCN-A4k-kzc3DdlywUP8tuH8rs8ni4Q")
+	ioService := tgbot.CreateBotIoService("707764774:AAGfSYmOolr0YBfiz10lCNkAupmWhvVttRA") //test
+//	ioService := tgbot.CreateBotIoService("768558434:AAHJnCN-A4k-kzc3DdlywUP8tuH8rs8ni4Q")
 	club.IoService = ioService
 
 
@@ -52,7 +52,7 @@ func main() {
 					}
 
 					fmt.Printf("<-%d, From:\t%s, Type: %s Text: %s \n", msg.ID, msg.Chat, typ, *msg.Text)
-					user := club.GetUserByChat(msg.Chat)
+					user := club.GetUser(msg.Chat)
 					if user == nil {
 						fmt.Printf("Cannot find or create user for chat: %s\n", msg.Chat)
 						return

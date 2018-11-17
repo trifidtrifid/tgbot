@@ -2,7 +2,7 @@ package tgbot
 
 import (
 	"fmt"
-	"github.com/mrd0ll4r/tbotapi"
+	"github.com/trifidtrifid/tbotapi"
 	"github.com/stretchr/testify/assert"
 	"hash/fnv"
 	"strconv"

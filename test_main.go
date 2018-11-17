@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/mrd0ll4r/tbotapi"
+	"github.com/trifidtrifid/tbotapi"
 	"github.com/trifidtrifid/tgbot/tgbot"
 	"log"
 	"os"

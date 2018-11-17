@@ -3,7 +3,7 @@ package tgbot
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mrd0ll4r/tbotapi"
+	"github.com/trifidtrifid/tbotapi"
 	"io/ioutil"
 	"os"
 )

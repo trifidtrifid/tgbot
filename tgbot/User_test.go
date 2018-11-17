@@ -5,8 +5,12 @@ import (
 	"github.com/mrd0ll4r/tbotapi"
 	"github.com/stretchr/testify/assert"
 	"hash/fnv"
+	"strconv"
 	"testing"
 )
+
+
+var testCfg Config
 
 type TestIoService struct {
 	Out chan string
@@ -23,7 +27,7 @@ func (bot *TestIoService) sendMainMenu(recipient tbotapi.Recipient) {
 	bot.Out<-"main menu"
 }
 func (bot *TestIoService) sendText(recipient tbotapi.Recipient, text string) {
-	fmt.Println("print text ", text)
+	fmt.Printf("-> to %s: %s\n", strconv.Itoa(*recipient.ChatID), text)
 	bot.Out<-text
 }
 func (bot *TestIoService) checkText(expect string) bool {
@@ -34,6 +38,15 @@ func (bot *TestIoService) checkText(expect string) bool {
 	}
 	return true
 }
+
+func createTestClub() (*Club, *TestIoService) {
+	testCfg.Path = "cfg.json"
+	club := CreateClub(&testCfg)
+	testIo := CreateTestIoService()
+	club.IoService = testIo
+	return club, testIo
+}
+
 func (bot *TestIoService) skipText() {
 	<-bot.Out
 }
@@ -60,7 +73,9 @@ func sendText(user *User, text string) {
 
 func TestUserHoldDeposit(t *testing.T) {
 
-	club := CreateClub()
+	testCfg.Path = "cfg.json"
+	club := CreateClub(&testCfg)
+
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 
@@ -80,7 +95,9 @@ func TestUserHoldDeposit(t *testing.T) {
 
 func TestUserHoldDepositTwo(t *testing.T) {
 
-	club := CreateClub()
+	testCfg.Path = "cfg.json"
+	club := CreateClub(&testCfg)
+
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 	{
@@ -96,7 +113,6 @@ func TestUserHoldDepositTwo(t *testing.T) {
 		assert.True(t, testIo.checkText(fmt.Sprintf(HoldDone, 1000)))
 		assert.Equal(t, 1000, user.HoldAmount)
 		assert.Equal(t, 1000, club.GetFund())
-		testIo.skipText()
 	}
 	{
 		user := club.GetUser(makeChat("usera"))
@@ -112,16 +128,31 @@ func TestUserHoldDepositTwo(t *testing.T) {
 		assert.Equal(t, 1000, user.HoldAmount)
 		assert.Equal(t, 2000, club.GetFund())
 		testIo.skipText()
-		testIo.skipText()
 
 	}
+
+	club.SaveClub()
+
+	club = CreateClub(&testCfg)
+	{
+		user := club.GetUser(makeChat("usera"))
+		assert.Equal(t, 1000, user.HoldAmount)
+
+		user = club.GetUser(makeChat("trifid"))
+		assert.Equal(t, 1000, user.HoldAmount)
+
+	}
+	assert.Equal(t, 2000, club.GetFund())
+
 }
 
 
 
 func TestUserSetSalary(t *testing.T) {
 
-	club := CreateClub()
+	testCfg.Path = "cfg.json"
+	club := CreateClub(&testCfg)
+
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 
@@ -141,7 +172,9 @@ func TestUserSetSalary(t *testing.T) {
 
 func TestUserGetMoney(t *testing.T) {
 
-	club := CreateClub()
+	testCfg.Path = "cfg.json"
+	club := CreateClub(&testCfg)
+
 	testIo := CreateTestIoService()
 	club.IoService = testIo
 	{
@@ -158,6 +191,9 @@ func TestUserGetMoney(t *testing.T) {
 		assert.Equal(t, 2000, user.HoldAmount)
 		assert.Equal(t, 2000, club.GetFund())
 	}
+	club.SaveClub()
+	club = CreateClub(&testCfg)
+	club.IoService = testIo
 	{
 		user := club.GetUser(makeChat("usera"))
 
@@ -171,19 +207,28 @@ func TestUserGetMoney(t *testing.T) {
 		assert.True(t, testIo.checkText(fmt.Sprintf(SalAnswer, 1000, 1500)))
 		assert.Equal(t, 1500, user.CreditLimit)
 	}
+	club.SaveClub()
+	club = CreateClub(&testCfg)
+	club.IoService = testIo
+
 	{
 		user := club.GetUser(makeChat("usera"))
 
 		sendText(user, "/start")
 		assert.True(t, testIo.checkText("main menu"))
 
-		sendText(user, "Get money")
+		sendText(user, "Borrow")
 		assert.True(t, testIo.checkText(fmt.Sprintf(HowMuchTake, 1500, 2000)))
 
 		sendText(user, "700")
 		assert.True(t, testIo.checkText(fmt.Sprintf(TakenSucc, 700)))
 		assert.Equal(t, 700, user.InCredit)
+		testIo.skipText() // skip get notification
 	}
+	club.SaveClub()
+	club = CreateClub(&testCfg)
+	club.IoService = testIo
+
 	{
 		user := club.GetUser(makeChat("usera"))
 
@@ -196,6 +241,35 @@ func TestUserGetMoney(t *testing.T) {
 		sendText(user, "300")
 		assert.True(t, testIo.checkText(fmt.Sprintf(ReturnSucc, 400)))
 		assert.Equal(t, 400, user.InCredit)
-
+		testIo.skipText() // skip return notification
 	}
+}
+
+func TestUserApDistrub(t *testing.T) {
+	club, testIo := createTestClub()
+
+	user := club.GetUser(makeChat("trifid"))
+
+	sendText(user, "Hold")
+	assert.True(t, testIo.checkText(HowMuchHold))
+
+	sendText(user, "2000")
+	assert.True(t, testIo.checkText(fmt.Sprintf(HoldDone, 2000)))
+	assert.Equal(t, 2000, user.HoldAmount)
+
+	user.DistrubAp()
+	assert.Equal(t, 2.74, user.AP)
+
+	user.DistrubAp()
+	assert.Equal(t, 5.48, user.AP)
+
+	user.DistrubAp()
+	assert.Equal(t, 8.22, user.AP)
+
+}
+
+func TestUserTimer(t *testing.T) {
+
+
+
 }

@@ -3,6 +3,8 @@ package tgbot
 import (
 	"fmt"
 	"github.com/mrd0ll4r/tbotapi"
+	"math"
+	"time"
 )
 
 const (
@@ -17,7 +19,8 @@ const (
 		"Credit limit: %d RUB\n" +
 		"APs: %d\n" +
 		"Holded funds: %d RUB\n" +
-		"Credit: %d RUB\n"
+		"Credit: %d RUB\n" +
+		"Every 30min = 1 day"
 	HowMuchTake = "How much you want to take from common fund? max available credit for you %d RUB. Common fund is %d RUB"
 	TakenSucc = "You successfully borrow %d RUB"
 	HowMuchReturn = "How much you want to return to common fund? your credit is %d RUB"
@@ -32,7 +35,7 @@ type User struct {
 	HoldAmount int
 	Club *Club
 	CreditLimit int
-	AP int
+	AP float64
 	InCredit int
 	Chat tbotapi.Chat
 }
@@ -64,9 +67,36 @@ func (user *User) getClubInfo() string {
 		user.Chat,
 		user.Club.GetFund() - user.Club.GetCredit(),
 		user.CreditLimit - user.InCredit,
-		user.AP,
+		int(user.AP),
 		user.HoldAmount,
 		user.InCredit)
+}
+
+func (user *User) DistrubAp() {
+	if user.InCredit != 0 {
+		fmt.Printf("Active credit %d. No angel points today\n", user.InCredit)
+		return
+	}
+
+	if user.HoldAmount == 0 {
+		fmt.Printf("Hold amount %d. No angel points today\n", user.HoldAmount)
+		return
+	}
+
+	//50% ap annual
+
+	ap := float64(user.HoldAmount) * 0.5
+	user.AP += ap / 365
+
+	user.AP = math.Round(user.AP*100) / 100
+
+	if user.HoldAmount == 0 {
+		fmt.Printf("Hold amount %d. No angel points today\n", user.HoldAmount)
+		return
+	}
+
+	fmt.Printf("%v Charge %f AP to %s\n", time.Now(), math.Round(ap/365) / 100, user.Chat)
+
 }
 
 func (user *User) processMsg(userMsg UserMessage) {
@@ -88,7 +118,7 @@ func (user *User) processMsg(userMsg UserMessage) {
 		user.HoldAmount += i
 		user.Club.FundAdd(i)
 		user.sendText(fmt.Sprintf(HoldDone, user.HoldAmount))
-		user.Club.NotifyEveryone(fmt.Sprintf("user %s hold %d RUB", userMsg.Message.Chat, i))
+		user.Club.NotifyEveryone(fmt.Sprintf("user %s hold %d RUB", userMsg.Message.Chat, i), &userMsg.Message.Chat)
 
 	case "Salary":
 		user.sendText( HowMuchSal)
@@ -102,7 +132,7 @@ func (user *User) processMsg(userMsg UserMessage) {
 		user.sendText( fmt.Sprintf(SalAnswer, user.Salary, user.CreditLimit))
 	case "Info":
 		user.sendText( user.getClubInfo())
-	case "Get money":
+	case "Borrow":
 		user.sendText( fmt.Sprintf(HowMuchTake, user.CreditLimit - user.InCredit, user.Club.GetFund() - user.Club.GetCredit()))
 
 		for {
@@ -133,11 +163,18 @@ func (user *User) processMsg(userMsg UserMessage) {
 				continue
 			}
 
+			if i > int(user.AP) {
+				user.sendText(
+					fmt.Sprintf("You have %f AP. You can borrow only %d RUB", user.AP, int(user.AP)))
+				continue
+			}
+
+			user.AP -= float64(i)
 			user.InCredit += i
 			user.Club.CreditAdd(i)
-			user.sendText( fmt.Sprintf(TakenSucc, i))
+			user.sendText(fmt.Sprintf(TakenSucc, i))
 
-			user.Club.NotifyEveryone(fmt.Sprintf("user %s take from fund %d RUB", userMsg.Message.Chat, i))
+			user.Club.NotifyEveryone(fmt.Sprintf("user %s take from fund %d RUB", userMsg.Message.Chat, i), &userMsg.Message.Chat)
 			break
 		}
 
@@ -164,7 +201,7 @@ func (user *User) processMsg(userMsg UserMessage) {
 			user.Club.CreditRemove(i)
 			user.sendText( fmt.Sprintf(ReturnSucc, user.InCredit))
 
-			user.Club.NotifyEveryone(fmt.Sprintf("user %s return to fund %d RUB", userMsg.Message.Chat, i))
+			user.Club.NotifyEveryone(fmt.Sprintf("user %s return to fund %d RUB", userMsg.Message.Chat, i), &userMsg.Message.Chat)
 			break
 		}
 	case "Users" :
@@ -173,6 +210,7 @@ func (user *User) processMsg(userMsg UserMessage) {
 		user.sendText("try /start")
 	}
 
+	user.Club.SaveClub()
 }
 
 

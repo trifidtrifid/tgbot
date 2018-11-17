@@ -5,6 +5,7 @@ import (
 	"github.com/mrd0ll4r/tbotapi"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Club struct {
@@ -17,12 +18,72 @@ type Club struct {
 
 	credit int
 	creditMtx sync.Mutex
+	cfg *Config
+}
+
+func (club *Club) RunApDistribution() {
+
+	go func (club *Club) {
+		timer2 := time.NewTicker(1 * time.Second)
+		for now := range timer2.C {
+			if (now.Unix()) % 1800 == 0 {
+				club.DistrubAp()
+			}
+		}
+	}(club)
 }
 
 
-func CreateClub() *Club {
+
+func (club *Club) DistrubAp() {
+	club.usersMtx.Lock()
+	defer club.usersMtx.Unlock()
+
+	for _, user := range club.Users {
+		user.DistrubAp()
+	}
+	club.SaveClub()
+}
+
+func (club *Club) SaveClub() {
+	var v []UserCfg
+	club.cfg.File.Users = v
+
+	for _, user := range club.Users {
+		var userCfg UserCfg
+		userCfg.Salary = user.Salary
+		userCfg.InCredit = user.InCredit
+		userCfg.HoldAmount = user.HoldAmount
+		userCfg.AP = user.AP
+		userCfg.CreditLimit = user.CreditLimit
+		userCfg.Chat = user.Chat
+		club.cfg.File.Users = append(club.cfg.File.Users, userCfg)
+	}
+
+	club.cfg.Save()
+}
+
+func CreateClub(cfg *Config) *Club {
 	club := new(Club)
+	club.cfg = cfg
 	club.Users = make(map[string]*User)
+
+	for _, userCfg := range cfg.File.Users {
+		user := club.GetUser(userCfg.Chat)
+		user.Salary = userCfg.Salary
+
+		user.InCredit = userCfg.InCredit
+		club.CreditAdd(user.InCredit)
+
+		user.HoldAmount = userCfg.HoldAmount
+		club.FundAdd(user.HoldAmount)
+
+		user.AP = userCfg.AP
+		user.Chat = userCfg.Chat
+		user.CreditLimit = userCfg.CreditLimit
+
+	}
+
 	return club
 }
 
@@ -44,12 +105,14 @@ func (club *Club) GetUser(chat tbotapi.Chat) *User {
 	return user
 }
 
-func (club *Club) NotifyEveryone(text string) {
+func (club *Club) NotifyEveryone(text string, chat *tbotapi.Chat) {
 	club.usersMtx.Lock()
 	defer club.usersMtx.Unlock()
 
 	for _, user := range club.Users {
-		club.IoService.sendText(tbotapi.NewRecipientFromChat(user.Chat), text)
+		if (chat == nil) || (chat.ID != user.Chat.ID) {
+			club.IoService.sendText(tbotapi.NewRecipientFromChat(user.Chat), text)
+		}
 	}
 }
 

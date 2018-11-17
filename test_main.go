@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/mrd0ll4r/tbotapi"
 	"github.com/trifidtrifid/tgbot/tgbot"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -12,12 +13,24 @@ import (
 
 func main() {
 
-	club := tgbot.CreateClub()
+	if len(os.Args) != 2 {
+		log.Fatal("Specify config file path")
+	}
+
+	var cfg tgbot.Config
+	cfg.Path = os.Args[1]
+
+	if !cfg.Load() {
+		log.Fatalf("Cannot load config file %s", cfg.Path)
+	}
+
+	club := tgbot.CreateClub(&cfg)
 
 	//ioService := tgbot.CreateBotIoService("707764774:AAGfSYmOolr0YBfiz10lCNkAupmWhvVttRA") //test
 	ioService := tgbot.CreateBotIoService("768558434:AAHJnCN-A4k-kzc3DdlywUP8tuH8rs8ni4Q")
 	club.IoService = ioService
 
+	club.RunApDistribution()
 
 	closing := make(chan struct{})
 	closed := make(chan struct{})

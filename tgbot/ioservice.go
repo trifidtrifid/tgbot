@@ -43,7 +43,7 @@ func (bot *BotIoService) sendMainMenu(recipient tbotapi.Recipient) {
 		Keyboard:        [][]tbotapi.KeyboardButton{{{Text: "Hold"}},
 			{{Text: "Salary"}},
 			{{Text: "Info"}},
-			{{Text: "Get money"}},
+			{{Text: "Borrow"}},
 			{{Text: "Return Money"}},
 			{{Text: "Users"}}},
 		OneTimeKeyboard: true,
@@ -63,6 +63,25 @@ func (bot *BotIoService) sendText(recipient tbotapi.Recipient, text string) {
 	// Now simply echo that back.
 	msg := bot.Api.NewOutgoingMessage(recipient, text)
 	msg.ParseMode = tbotapi.ModeMarkdown
+	outMsg, err := msg.Send()
+	if err != nil {
+		fmt.Printf("Error sending text: %s\n", err)
+		return
+	}
+	fmt.Printf("send text ->%d, To:\t%s, Text: %s\n", outMsg.Message.ID, outMsg.Message.Chat, *outMsg.Message.Text)
+
+}
+
+func (bot *BotIoService) sendTextWithMenu(recipient tbotapi.Recipient, text string) {
+
+	// Now simply echo that back.
+	msg := bot.Api.NewOutgoingMessage(recipient, text)
+	msg.ParseMode = tbotapi.ModeMarkdown
+
+	msg.SetInlineKeyboardMarkup(tbotapi.InlineKeyboardMarkup{
+		InlineKeyboard:        [][]tbotapi.InlineKeyboardButton{{{Text: "test!", CallbackData: "trifid_test!"}}},
+	})
+
 	outMsg, err := msg.Send()
 	if err != nil {
 		fmt.Printf("Error sending text: %s\n", err)

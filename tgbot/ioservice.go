@@ -9,6 +9,7 @@ import (
 type IoService interface {
 	sendMainMenu(recipient tbotapi.Recipient)
 	sendText(recipient tbotapi.Recipient, text string)
+	sendApRequest(recipient tbotapi.Recipient, text string, originator string)
 }
 
 
@@ -40,12 +41,15 @@ func (bot *BotIoService) sendMainMenu(recipient tbotapi.Recipient) {
 
 	toSend := bot.Api.NewOutgoingMessage(recipient, "Select action")
 	toSend.SetReplyKeyboardMarkup(tbotapi.ReplyKeyboardMarkup{
-		Keyboard:        [][]tbotapi.KeyboardButton{{{Text: "Hold"}},
+		Keyboard:        [][]tbotapi.KeyboardButton{
+			{{Text: "Hold"}},
+			{{Text: "Unhold"}},
 			{{Text: "Salary"}},
 			{{Text: "Info"}},
 			{{Text: "Borrow"}},
 			{{Text: "Return Money"}},
-			{{Text: "Users"}}},
+			{{Text: "Users"}},
+		    {{Text: "/ask_for_ap"}}},
 		OneTimeKeyboard: true,
 	})
 
@@ -72,14 +76,18 @@ func (bot *BotIoService) sendText(recipient tbotapi.Recipient, text string) {
 
 }
 
-func (bot *BotIoService) sendTextWithMenu(recipient tbotapi.Recipient, text string) {
+func (bot *BotIoService) sendApRequest(recipient tbotapi.Recipient, text string, originator string) {
 
 	// Now simply echo that back.
 	msg := bot.Api.NewOutgoingMessage(recipient, text)
 	msg.ParseMode = tbotapi.ModeMarkdown
 
 	msg.SetInlineKeyboardMarkup(tbotapi.InlineKeyboardMarkup{
-		InlineKeyboard:        [][]tbotapi.InlineKeyboardButton{{{Text: "test!", CallbackData: "trifid_test!"}}},
+		InlineKeyboard:        [][]tbotapi.InlineKeyboardButton{
+			{{Text: "send 20 AP", CallbackData: originator + " " + "20"}},
+			{{Text: "send 100 AP", CallbackData: originator + " " + "100"}},
+			{{Text: "send 500 AP", CallbackData: originator + " " + "500"}},
+			{{Text: "send 5000 AP", CallbackData: originator + " " + "5000"}}},
 	})
 
 	outMsg, err := msg.Send()
@@ -87,6 +95,6 @@ func (bot *BotIoService) sendTextWithMenu(recipient tbotapi.Recipient, text stri
 		fmt.Printf("Error sending text: %s\n", err)
 		return
 	}
-	fmt.Printf("send text ->%d, To:\t%s, Text: %s\n", outMsg.Message.ID, outMsg.Message.Chat, *outMsg.Message.Text)
-
+	fmt.Printf("send text with inline menu ->%d, To:\t%s, Text: %s Cmd: %s\n",
+		outMsg.Message.ID, outMsg.Message.Chat, *outMsg.Message.Text, originator)
 }

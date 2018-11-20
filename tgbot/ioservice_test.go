@@ -33,7 +33,7 @@ func TestMenu(t *testing.T) {
 	rcpt.ChatID = new(int)
 	*rcpt.ChatID = 281259469
 
-	ioService.sendTextWithMenu(rcpt, "test")
+	ioService.sendTextWithMenu(rcpt, "test", "cmd")
 
 	time.Sleep(10 * time.Second)
 

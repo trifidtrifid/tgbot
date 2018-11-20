@@ -105,6 +105,18 @@ func (club *Club) GetUser(chat tbotapi.Chat) *User {
 	return user
 }
 
+func (club *Club) FindUser(userId string) *User {
+	club.usersMtx.Lock()
+	defer club.usersMtx.Unlock()
+
+	user, ok := club.Users[userId]
+	if !ok {
+		return nil
+	}
+
+	return user
+}
+
 func (club *Club) NotifyEveryone(text string, chat *tbotapi.Chat) {
 	club.usersMtx.Lock()
 	defer club.usersMtx.Unlock()
@@ -129,6 +141,12 @@ func (club *Club) ClubUsersInfo() string {
 func (club *Club) FundAdd(i int) {
 	club.fundMtx.Lock()
 	club.commonFund += i
+	club.fundMtx.Unlock()
+}
+
+func (club *Club) FundRemove(i int) {
+	club.fundMtx.Lock()
+	club.commonFund -= i
 	club.fundMtx.Unlock()
 }
 
